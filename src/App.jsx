@@ -346,7 +346,7 @@ export default function App() {
                       </div>
 
                       <div className="flex items-center justify-between text-[10px] font-mono text-[#777777]">
-                        <span>{siteObj ? `${siteObj.lat.toFixed(2)}°S, ${siteObj.lon.toFixed(1)}°E` : ''}</span>
+                        <span>{siteObj ? `${Math.abs(siteObj.lat).toFixed(2)}°${siteObj.lat < 0 ? 'S' : 'N'}, ${Math.abs(siteObj.lon).toFixed(1)}°${siteObj.lon < 0 ? 'W' : 'E'}` : ''}</span>
                         <span>{siteObj && siteObj.elevationMeters > 0 ? `+${siteObj.elevationMeters}m` : `${siteObj?.elevationMeters}m`}</span>
                       </div>
                     </button>
@@ -540,7 +540,7 @@ export default function App() {
                     {selectedSite.name}
                   </h2>
                   <div className="text-[10px] font-mono text-[#888888] mt-0.5">
-                    {selectedSite.lat.toFixed(2)}°S, {selectedSite.lon.toFixed(1)}°E • <strong className="text-white">{selectedSite.elevationMeters > 0 ? `+${selectedSite.elevationMeters}` : selectedSite.elevationMeters}m</strong> (IAU-2018)
+                    {Math.abs(selectedSite.lat).toFixed(2)}°{selectedSite.lat < 0 ? 'S' : 'N'}, {Math.abs(selectedSite.lon).toFixed(2)}°{selectedSite.lon < 0 ? 'W' : 'E'} • <strong className="text-white">{selectedSite.elevationMeters > 0 ? `+${selectedSite.elevationMeters}` : selectedSite.elevationMeters}m</strong> LOLA
                   </div>
                 </div>
 
@@ -581,7 +581,7 @@ export default function App() {
                   </strong>
                 </div>
                 <div className="px-1">
-                  <span className="text-[8px] uppercase tracking-wider text-[#888888] block">Slope Hazard</span>
+                  <span className="text-[8px] uppercase tracking-wider text-[#888888] block">Terrain rating</span>
                   <strong className={`text-xs font-semibold mt-0.5 block ${
                     selectedSite.hazardRating === 'Low' ? 'text-[#A1AA9E]' : selectedSite.hazardRating === 'High' ? 'text-[#A78484]' : 'text-[#AE9B7D]'
                   }`}>
@@ -861,9 +861,9 @@ export default function App() {
 
         {/* Right: Geodetic Cursor Readout */}
         <div className="hidden md:flex items-center gap-2 text-[10px] font-mono text-[#777777] shrink-0">
-          <span>LAT: <strong className="text-white">{selectedSite.lat.toFixed(2)}°S</strong></span>
+          <span>LAT: <strong className="text-white">{Math.abs(selectedSite.lat).toFixed(2)}°{selectedSite.lat < 0 ? 'S' : 'N'}</strong></span>
           <span>|</span>
-          <span>LON: <strong className="text-white">{selectedSite.lon.toFixed(1)}°E</strong></span>
+          <span>LON: <strong className="text-white">{Math.abs(selectedSite.lon).toFixed(1)}°{selectedSite.lon < 0 ? 'W' : 'E'}</strong></span>
           <span>|</span>
           <span>ELEV: <strong className="text-[#CCCCCC]">{selectedSite.elevationMeters > 0 ? `+${selectedSite.elevationMeters}` : selectedSite.elevationMeters}m</strong></span>
         </div>
@@ -898,8 +898,8 @@ export default function App() {
 
             <div className="my-3 space-y-3">
               <p className="text-xs text-[#999999] leading-relaxed">
-                Aethra calculates its project score using these weights:
-                <strong className="text-white"> 40% feasibility</strong>, <strong className="text-white">30% Earth contact</strong>, <strong className="text-white">20% generated energy</strong>, and <strong className="text-white">10% terrain hazard</strong>. <a className="underline underline-offset-2 text-[#D0D0D0]" href="https://www.nasa.gov/reference/systems-engineering-handbook/" target="_blank" rel="noreferrer">NASA/SP-2016-6105 §6.8</a> describes decision analysis; the weights and 0% battery rule shown here are set by this project. A site is marked no-go if the modeled battery reaches 0%.
+                Aethra ranks sites with a project-defined score using these weights:
+                <strong className="text-white"> 40% modeled survival</strong>, <strong className="text-white">30% Earth contact</strong>, <strong className="text-white">20% modeled energy</strong>, and <strong className="text-white">10% terrain rating</strong>. <a className="underline underline-offset-2 text-[#D0D0D0]" href="https://www.nasa.gov/reference/systems-engineering-handbook/" target="_blank" rel="noreferrer">NASA/SP-2016-6105 §6.8</a> discusses decision analysis; it does not set these weights or thresholds. The terrain ratings are project inputs, not slopes measured from LOLA. A site is marked no-go only when this model's battery estimate reaches 0%.
               </p>
 
               {/* Clean Matte Table */}

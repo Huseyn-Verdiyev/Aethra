@@ -1,32 +1,17 @@
 /**
  * ============================================================================
- * PROJECT AETHRA // CORE ASTRONOMICAL & GNC EPHEMERIS ENGINE
+ * PROJECT AETHRA // LUNAR SITE SCREENING MODEL
  * ============================================================================
- * Flight-grade lunar surface mission planning engine conforming to:
- * 1. IAU/IAG Working Group on Cartographic Coordinates & Rotational Elements (WGCCRE 2018)
- *    - Triaxial lunar ellipsoid: a = 1738.1 km, b = 1738.0 km, c = 1735.97 km (1.43 km polar flattening)
- *    - Archinal et al. (2018) Celestial Mechanics and Dynamical Astronomy 130:22
- * 2. NASA JPL DE440/DE441 Planetary Ephemerides via Astronomy Engine
- * 3. Exact Analytical Solar Limb Darkening Knife-Edge Disk Occultation
- *    - Mandel, K. & Agol, E. (2002) Astrophysical Journal 580:L171-L175
- *    - Strictly satisfies circular disk reflection symmetry: f(0) = 0.5000 and f(y) + f(-y) = 1.0000
- * 4. Multi-Facet Hexagonal Body Spacecraft Solar Array Model
- *    - 6 vertical faces (60° separation) + horizontal deck panel with landing heading angle
- *    - Semiconductor physics: Triple-junction InGaP/GaAs/Ge cell temperature derating (Spectrolab XTJ Prime)
- *      dV_oc/dT = -6.2 mV/K, gamma_P = -0.0025 / K (efficiency increases in cryogenic polar regimes)
- * 5. Direct 3D Vector Telecommunications to Rotating NASA Deep Space Network (DSN) Complexes
- *    - Goldstone DSS-24 (243.11°E, +35.43°N), Madrid DSS-54 (355.75°E, +40.43°N), Canberra DSS-35 (148.98°E, -35.40°S)
- *    - Topocentric lander-to-station line-of-sight vectors with WGS-84 Earth flattening & GAST rotation
- *    - NASA DSN 810-005, Rev. E, Module 104; 10.0° operational ground elevation mask
- * 6. Electrical Power System (EPS) State Machine with Hysteresis & Thermal Heater Control
- *    - 1500 Wh space-grade Li-Ion battery pack with irreversible Loss of Mission (LOM) at 0% SoC
- *    - Thermostatic battery survival heaters (18W) below 250K to prevent lithium plating
- *    - Power mode hysteresis: prevents premature chattering into 110W active ops during low-sunlight ingress
- * 7. LRO Diviner (DLRE) Calibrated Thermophysical Surface Equilibrium
- *    - Vasavada et al. (2012) JGR Planets 117:E12; Apollo 15/17 heat flow probes (0.018 W/m^2)
+ * Screening estimates for the NASA Space Apps Lunar Landing Site Navigator challenge.
+ * Horizon profiles use NASA GSFC PGDA LOLA DEMs; derivation and validation are
+ * documented in README.md and scripts/derive_lola_profiles.py.
+ * Astronomy Engine supplies analytical Sun/Moon vectors; this is not JPL DE440/441.
+ * Power, battery, thermal and radio hardware values are project assumptions, not
+ * qualified spacecraft characteristics. This model is not flight software.
  */
 
 import * as Astronomy from 'astronomy-engine';
+import LOLA_PROFILES from './lolaHorizonProfiles.json';
 
 // Standard Physical & Astronomical Constants (CODATA / IAU / NASA)
 export const LUNAR_EQUATORIAL_RADIUS_KM = 1738.1; // Mean equatorial radius (IAU WGCCRE)
@@ -97,145 +82,70 @@ export const DSN_STATIONS = [
   }
 ];
 
-/**
- * Evaluates the IAU WGCCRE 2018 triaxial Moon reference ellipsoid radius (in km)
- * at a given selenographic latitude (phi).
- * Conforms to Archinal et al. (2018), resolving the 1.43 km polar flattening.
- */
-export function computeSelenoidRadiusKm(siteLatDeg) {
-  const phi = (siteLatDeg * Math.PI) / 180.0;
-  const a = LUNAR_EQUATORIAL_RADIUS_KM; // 1738.1 km
-  const c = LUNAR_POLAR_RADIUS_KM;      // 1735.97 km
-  const cosP = Math.cos(phi);
-  const sinP = Math.sin(phi);
-  const num = Math.pow(a * a * cosP, 2) + Math.pow(c * c * sinP, 2);
-  const den = Math.pow(a * cosP, 2) + Math.pow(c * sinP, 2);
-  return Math.sqrt(num / den);
+/** Reference radius in km, matching the ocentric sphere used by the LOLA DEMs. */
+export function computeReferenceRadiusKm() {
+  return LUNAR_RADIUS_KM;
 }
 
 /**
- * Helper to generate C1 continuous 72-point horizon masks from topographic anchor points
- */
-function makeMaskFromAnchors(anchors) {
-  const result = [];
-  anchors.sort((a, b) => a[0] - b[0]);
-  const n = anchors.length;
-
-  for (let b = 0; b < 72; b++) {
-    const az = b * 5.0;
-    let p0, p1;
-    if (az < anchors[0][0]) {
-      p0 = [anchors[n - 1][0] - 360, anchors[n - 1][1]];
-      p1 = anchors[0];
-    } else if (az >= anchors[n - 1][0]) {
-      p0 = anchors[n - 1];
-      p1 = [anchors[0][0] + 360, anchors[0][1]];
-    } else {
-      for (let i = 0; i < n - 1; i++) {
-        if (az >= anchors[i][0] && az <= anchors[i + 1][0]) {
-          p0 = anchors[i];
-          p1 = anchors[i + 1];
-          break;
-        }
-      }
-    }
-    const t = (az - p0[0]) / (p1[0] - p0[0]);
-    const mu = (1 - Math.cos(t * Math.PI)) / 2;
-    result.push(Number((p0[1] * (1 - mu) + p1[1] * mu).toFixed(2)));
-  }
-  return result;
-}
-
-/**
- * 1. REAL CANDIDATE SITES DATABASE (NASA Artemis / CLPS Flight Selection)
- * Features distinct, physically faithful 72-sector (5.0° azimuthal bin) horizon elevation masks
- * calibrated against LRO LOLA polar altimetry and geomorphology:
- * - Shackleton Connecting Ridge: High crest (+1420m), open north drop-off towards Earth, high east rim wall.
- * - Malapert Mountain Peak: Towering massif summit (+5120m), horizon is far below local tangent (-3.8° to -1.2°).
- * - Haworth Crater: Deep volatile cold-trap PSR (-1200m), surrounded 360° by massive rim walls (+5.2° to +11.2°).
- * - Nobile Rim 1: Smooth rolling impact ejecta plateau (+840m), moderate undulating relief (-0.7° to +1.8°).
- * - de Gerlache Rim 2: High asymmetrical rim crest (+2310m), open north saddle, steep crater wall to west.
+ * 1. REFERENCE POINTS FROM NASA LUNAR SURFACE DATA BOOK, TABLE A2.1-1
+ * Elevations and horizon profiles come from LOLA DEMs; see lolaHorizonProfiles.json.
  */
 export const SITES_DATA = [
   {
     id: 'shackleton',
-    name: 'Shackleton Connecting Ridge',
-    lat: -89.90,
-    lon: 0.0,
-    elevationMeters: 1420,
+    name: 'Connecting Ridge',
+    lat: -89.4632,
+    lon: -137.49,
+    elevationMeters: LOLA_PROFILES.shackleton.elevationMeters,
     hazardRating: 'Low',
     landerHeadingDeg: 45.0,
-    recommendedMission: 'Astrobotic Griffin-1 / Autonomous Surface Payload',
-    description: 'Prominent narrow ridge connecting Shackleton and de Gerlache rims. High solar exposure with low mobility slopes for autonomous traverse.',
-    horizonMask: makeMaskFromAnchors([
-      [0, -1.4], [30, -0.8], [60, 0.4], [105, 1.6], [135, 1.1],
-      [170, -0.4], [200, -0.8], [235, 0.3], [255, 0.9], [280, -0.2],
-      [315, -1.2], [345, -1.5]
-    ])
+    description: 'NASA reference center R01. Elevation and horizon profile are derived from LOLA terrain data.',
+    horizonMask: LOLA_PROFILES.shackleton.horizonMaskDeg
   },
   {
     id: 'malapert',
-    name: 'Malapert Mountain Peak',
-    lat: -85.99,
-    lon: 0.0,
-    elevationMeters: 5120,
+    name: 'Malapert Massif',
+    lat: -85.9948,
+    lon: -0.23578,
+    elevationMeters: LOLA_PROFILES.malapert.elevationMeters,
     hazardRating: 'Medium',
     landerHeadingDeg: 0.0,
-    recommendedMission: 'Intuitive Machines IM-2',
-    description: 'Massive elevated peak (+5,120m) providing quasi-permanent solar illumination and continuous line-of-sight to Deep Space Network (DSN) ground stations.',
-    horizonMask: [
-      -2.80, -2.60, -2.40, -2.10, -1.80, -1.50, -1.20, -1.40, -1.60, -1.90, -2.30, -2.70,
-      -3.10, -3.40, -3.60, -3.70, -3.80, -3.70, -3.50, -3.20, -2.80, -2.40, -2.00, -1.70,
-      -1.50, -1.30, -1.20, -1.40, -1.70, -2.10, -2.50, -2.90, -3.30, -3.60, -3.80, -3.70,
-      -3.50, -3.20, -2.80, -2.40, -2.10, -1.80, -1.60, -1.40, -1.30, -1.50, -1.80, -2.20,
-      -2.60, -3.00, -3.40, -3.70, -3.80, -3.60, -3.30, -2.90, -2.50, -2.20, -1.90, -1.70,
-      -1.50, -1.40, -1.30, -1.50, -1.80, -2.20, -2.60, -2.90, -3.20, -3.50, -3.60, -3.20
-    ]
+    description: 'NASA reference center R23. Elevation and horizon profile are derived from LOLA terrain data.',
+    horizonMask: LOLA_PROFILES.malapert.horizonMaskDeg
   },
   {
     id: 'haworth',
-    name: 'Haworth Crater Rim/Floor',
-    lat: -87.40,
-    lon: -5.1,
-    elevationMeters: -1200,
+    name: 'Haworth',
+    lat: -86.7639,
+    lon: -22.777,
+    elevationMeters: LOLA_PROFILES.haworth.elevationMeters,
     hazardRating: 'High',
     landerHeadingDeg: 90.0,
-    recommendedMission: 'Firefly Blue Ghost 2',
-    description: 'Volatile prospecting cold-trap site. Extremely deep impact depression with severe terrain shadowing from surrounding massif walls.',
-    horizonMask: makeMaskFromAnchors([
-      [0, 6.2], [30, 7.8], [65, 10.4], [105, 9.8], [140, 11.2], [180, 9.1],
-      [220, 7.9], [260, 9.5], [295, 6.8], [325, 5.2], [345, 5.8]
-    ])
+    description: 'NASA reference center Haworth. Elevation and horizon profile are derived from LOLA terrain data.',
+    horizonMask: LOLA_PROFILES.haworth.horizonMaskDeg
   },
   {
     id: 'nobile',
     name: 'Nobile Rim 1',
-    lat: -85.20,
-    lon: 53.5,
-    elevationMeters: 840,
+    lat: -85.4381,
+    lon: 37.36667,
+    elevationMeters: LOLA_PROFILES.nobile.elevationMeters,
     hazardRating: 'Low',
     landerHeadingDeg: 180.0,
-    recommendedMission: 'Griffin-1 Payload Delivery Platform (VIPER Target Site)',
-    description: 'Gently rolling topography formed by impact ejecta blanket. Primary designated target for high-latitude rover operations.',
-    horizonMask: makeMaskFromAnchors([
-      [0, -0.6], [40, 0.2], [90, 1.8], [130, 1.4], [175, 0.6], [215, 1.1],
-      [255, 0.1], [290, -0.4], [330, -0.7]
-    ])
+    description: 'NASA reference center R06. Elevation and horizon profile are derived from LOLA terrain data.',
+    horizonMask: LOLA_PROFILES.nobile.horizonMaskDeg
   },
   {
     id: 'de_gerlache',
     name: 'de Gerlache Rim 2',
-    lat: -88.30,
-    lon: -68.7,
-    elevationMeters: 2310,
+    lat: -88.23,
+    lon: -64.6284,
+    elevationMeters: LOLA_PROFILES.de_gerlache.elevationMeters,
     hazardRating: 'Medium',
     landerHeadingDeg: 315.0,
-    recommendedMission: 'Artemis Crewed Evaluation Zone',
-    description: 'High-elevation rim segment exhibiting high solar visibility during southern hemisphere summer solstice.',
-    horizonMask: makeMaskFromAnchors([
-      [0, -1.8], [35, -1.2], [75, 0.5], [115, 1.3], [155, 1.9], [195, 1.2],
-      [245, 2.3], [285, 0.8], [320, -1.1]
-    ])
+    description: 'NASA reference center SL2. Elevation and horizon profile use the global LOLA terrain model.',
+    horizonMask: LOLA_PROFILES.de_gerlache.horizonMaskDeg
   }
 ];
 
@@ -333,9 +243,9 @@ export function getSelenographicEphemeris(targetTime) {
 }
 
 /**
- * 3. 3D TOPOCENTRIC EAST-NORTH-UP (ENU) REDUCTION WITH SELENOID PARALLAX
+ * 3. 3D TOPOCENTRIC EAST-NORTH-UP (ENU) REDUCTION WITH LOLA DATUM
  * Evaluates true topocentric elevation and azimuth accounting for:
- * - Local selenoid surface curvature with polar flattening (computeSelenoidRadiusKm)
+ * - LOLA DEM reference sphere (1737.4 km ocentric radius)
  * - Topocentric parallax resolution (~0.25° for Earth)
  * - Geometric horizon dip angle theta_dip = acos(R_selenoid / (R_selenoid + h))
  */
@@ -365,8 +275,8 @@ export function toTopocentricENU(targetVectorSelenKm, siteLat, siteLon, siteElev
     0
   ];
 
-  // Observer position on the reference lunar ellipsoid (km)
-  const rSelenoidRadiusKm = computeSelenoidRadiusKm(siteLat);
+  // Observer position on the spherical reference surface used by these LOLA DEMs (km)
+  const rSelenoidRadiusKm = computeReferenceRadiusKm();
   const rObsRadiusKm = rSelenoidRadiusKm + (siteElevationMeters / 1000.0);
   const rObsSelenKm = u_Up.map(c => c * rObsRadiusKm);
 
@@ -410,96 +320,28 @@ export function toTopocentricENU(targetVectorSelenKm, siteLat, siteLon, siteElev
 }
 
 /**
- * 4. CONTINUOUS CUBIC HERMITE / CATMULL-ROM HORIZON MASK INTERPOLATOR
- * Evaluates terrain obstruction angle with C1-continuous circular cubic spline
- * across the 72-sector (5.0° bin) azimuthal profile.
+ * 4. CIRCULAR LINEAR INTERPOLATION OF THE ONE-DEGREE LOLA HORIZON PROFILE
+ * Linear interpolation does not invent peaks between sampled bearings.
  */
 export function getInterpolatedHorizonElevation(horizonMask, azimuthDeg) {
   const n = horizonMask.length;
   const normalizedAz = ((azimuthDeg % 360) + 360) % 360;
-  const step = 360.0 / n; // 5.0 degrees per bin for 72 elements
+  const step = 360.0 / n;
   const indexFloat = normalizedAz / step;
   const i1 = Math.floor(indexFloat) % n;
-  const i0 = (i1 - 1 + n) % n;
   const i2 = (i1 + 1) % n;
-  const i3 = (i1 + 2) % n;
   const t = indexFloat - Math.floor(indexFloat);
-
-  // Catmull-Rom tangents
-  const m1 = 0.5 * (horizonMask[i2] - horizonMask[i0]);
-  const m2 = 0.5 * (horizonMask[i3] - horizonMask[i1]);
-
-  // Cubic Hermite basis functions
-  const t2 = t * t;
-  const t3 = t2 * t;
-  const h00 = 2 * t3 - 3 * t2 + 1;
-  const h10 = t3 - 2 * t2 + t;
-  const h01 = -2 * t3 + 3 * t2;
-  const h11 = t3 - t2;
-
-  const val = h00 * horizonMask[i1] + h10 * m1 + h01 * horizonMask[i2] + h11 * m2;
+  const val = horizonMask[i1] * (1 - t) + horizonMask[i2] * t;
   return Number(val.toFixed(2));
 }
 
-/**
- * Identifies the specific topographic crater rim, massif wall, or plain causing
- * shadow occlusion or direct illumination at a given solar azimuth.
- */
+/** Reports the sampled DEM horizon at the Sun's azimuth; no named obstacle is inferred. */
 export function getTerrainObstacleInfo(siteId, sunAzimuthDeg, sunElevationDeg) {
   const site = SITES_DATA.find(s => s.id === siteId) || SITES_DATA[0];
   const az = ((sunAzimuthDeg % 360) + 360) % 360;
   const rawTerrainAtSun = getInterpolatedHorizonElevation(site.horizonMask, az);
   const clearance = sunElevationDeg - rawTerrainAtSun;
   const isBlocked = clearance < SOLAR_SEMIDIAMETER_DEG; // Below solar disk limb
-
-  let obstacleName = 'Local Horizon Ridge';
-  let obstacleDesc = 'General crater topography';
-
-  if (site.id === 'haworth') {
-    if (az >= 315 || az < 45) {
-      obstacleName = 'Haworth North Massif Wall';
-      obstacleDesc = 'Elevated +6.2° to +7.8° rim wall casting continuous cold-trap shadow';
-    } else if (az >= 45 && az < 135) {
-      obstacleName = 'East Massif Escarpment';
-      obstacleDesc = 'Towering +9.8° to +11.2° massif completely blocking solar rays';
-    } else if (az >= 135 && az < 225) {
-      obstacleName = 'South Cold-Trap Rim Wall';
-      obstacleDesc = 'High southern rim (+9.1° to +11.2°) causing permanent shadow (PSR)';
-    } else {
-      obstacleName = 'Haworth West Ridge';
-      obstacleDesc = 'Western rim terraces (+6.8° to +9.5°) blocking low-elevation transit';
-    }
-  } else if (site.id === 'shackleton') {
-    if (az >= 45 && az < 160) {
-      obstacleName = 'Shackleton Crater East Rim';
-      obstacleDesc = 'East crater rim wall (+1.6° to +1.8°) causing periodic shadow dips';
-    } else if (az >= 160 && az < 270) {
-      obstacleName = 'de Gerlache Connecting Ridge Crest';
-      obstacleDesc = 'Undulating saddle ridge (+0.3° to +0.9°)';
-    } else {
-      obstacleName = 'Open Trans-Earth Drop-Off';
-      obstacleDesc = 'Unobstructed northern slope facing Earth (-1.5° to -0.4°)';
-    }
-  } else if (site.id === 'malapert') {
-    obstacleName = 'Malapert Mountain Summit Edge';
-    obstacleDesc = 'Peak elevation (+5,120m) towers over horizon (-1.2° to -3.8°) — 100% open sky';
-  } else if (site.id === 'nobile') {
-    if (az >= 60 && az < 180) {
-      obstacleName = 'Nobile Rim 1 High Ejecta Ridge';
-      obstacleDesc = 'Impact ejecta wall (+1.4° to +1.8°) blocking low-horizon transit';
-    } else {
-      obstacleName = 'Smooth Amundsen Plain Horizon';
-      obstacleDesc = 'Gentle highland plateau (-0.7° to +0.2°)';
-    }
-  } else if (site.id === 'de_gerlache') {
-    if (az >= 180 && az < 280) {
-      obstacleName = 'de Gerlache Crater West Massif Wall';
-      obstacleDesc = 'Steep western crater wall (+2.3° to +4.8°) casting long shadows';
-    } else {
-      obstacleName = 'Saddle Ridge Horizon';
-      obstacleDesc = 'Northern connecting ridge (-1.8° to +0.5°)';
-    }
-  }
 
   return {
     siteId,
@@ -508,8 +350,8 @@ export function getTerrainObstacleInfo(siteId, sunAzimuthDeg, sunElevationDeg) {
     sunElevationDeg: Number(sunElevationDeg.toFixed(2)),
     ridgeElevationDeg: Number(rawTerrainAtSun.toFixed(2)),
     clearanceDeg: Number(clearance.toFixed(2)),
-    obstacleName,
-    obstacleDesc,
+    obstacleName: 'LOLA terrain horizon',
+    obstacleDesc: `${LOLA_PROFILES[site.id]?.localResolutionMeters || 80} m DEM profile at this azimuth`,
     isBlocked
   };
 }
@@ -590,7 +432,7 @@ export function computeDsnTracking(targetTime, siteLat, siteLon, siteElevationMe
   const u_North = [-Math.sin(phi) * Math.cos(lambda), -Math.sin(phi) * Math.sin(lambda), Math.cos(phi)];
   const u_East = [-Math.sin(lambda), Math.cos(lambda), 0];
 
-  const rSelenoidRadiusKm = computeSelenoidRadiusKm(siteLat);
+  const rSelenoidRadiusKm = computeReferenceRadiusKm();
   const rObsRadiusKm = rSelenoidRadiusKm + (siteElevationMeters / 1000.0);
   const rLanderSelen = u_Up.map(c => c * rObsRadiusKm);
 
@@ -945,12 +787,12 @@ export function generateRealEphemerisWindow(siteId, startEpoch = new Date('2026-
         // Solar array produces enough power to self-sustain full payload
         epsState = 'ACTIVE_OPERATIONS';
         currentLoadWatts = POWER_LOAD_ACTIVE_W;
-        powerMode = 'ACTIVE FLIGHT OPS (110W)';
+        powerMode = 'ACTIVE MODE (110W)';
       } else if (batterySocPercentCurrent >= 60.0 && pGenWatts >= 60.0) {
         // Battery has strong reserve and solar generation covers most of load
         epsState = 'ACTIVE_OPERATIONS';
         currentLoadWatts = POWER_LOAD_ACTIVE_W;
-        powerMode = 'ACTIVE FLIGHT OPS (110W)';
+        powerMode = 'ACTIVE MODE (110W)';
       } else if (pGenWatts > 0) {
         // Solar power is present but insufficient for active ops: prioritize charging
         epsState = 'WARMUP_CHARGING';
@@ -1161,9 +1003,9 @@ export function evaluateMissionViability(samples, daySummaries) {
 }
 
 /**
- * 13. MULTI-ATTRIBUTE DECISION ANALYSIS (MADA) LANDING SITE DOWNSELECTION
- * Conforms to NASA SP-2016-6105 Rev 2 Systems Engineering Handbook (Section 6.8).
- * Evaluates, scores, ranks, and produces executive flight recommendations across all 5 candidate sites.
+ * 13. PROJECT MULTI-ATTRIBUTE SITE RANKING
+ * NASA SP-2016-6105 discusses decision analysis; this project's weights,
+ * hazard ratings and battery cutoff are assumptions, not NASA requirements.
  */
 export function evaluateAllSitesDownselection(startEpoch, stepHours = 0.5) {
   const evaluations = SITES_DATA.map(site => {
@@ -1171,13 +1013,13 @@ export function evaluateAllSitesDownselection(startEpoch, stepHours = 0.5) {
     const daySummaries = aggregateMissionDays(samples);
     const viability = evaluateMissionViability(samples, daySummaries);
 
-    // Hazard rating weighting: Low = 100, Medium = 85, High = 60
+    // Qualitative project input; these ratings are not calculated from DEM slopes.
     const hazardScore = site.hazardRating === 'Low' ? 100 : (site.hazardRating === 'Medium' ? 85 : 60);
 
     // If mission terminates (LOM due to battery depletion in shadow), site is DISQUALIFIED
     let compositeScore = 0;
     let rankStatus = 'DISQUALIFIED';
-    let verdict = 'NO-GO: IRREVERSIBLE LOSS OF MISSION (LOM)';
+    let verdict = 'NO-GO IN THIS MODEL: BATTERY ESTIMATE REACHES 0%';
 
     if (viability.isMissionSuccess) {
       const energyNormalized = Math.min(100, Math.round((viability.totalMissionEnergyKwh / 120.0) * 100));
@@ -1190,10 +1032,10 @@ export function evaluateAllSitesDownselection(startEpoch, stepHours = 0.5) {
 
       if (compositeScore >= 85) {
         rankStatus = 'PRIMARY_NOMINAL';
-        verdict = 'GO: PRIMARY FLIGHT TARGET';
+        verdict = 'HIGHEST-SCORING CANDIDATE';
       } else if (compositeScore >= 65) {
         rankStatus = 'SECONDARY_ALTERNATE';
-        verdict = 'GO: SECONDARY ALTERNATE';
+        verdict = 'ALTERNATE IN THIS MODEL';
       } else {
         rankStatus = 'MARGINAL';
         verdict = 'CAUTION: MARGINAL OPERATIONAL WINDOW';
@@ -1231,9 +1073,9 @@ export function evaluateAllSitesDownselection(startEpoch, stepHours = 0.5) {
   let verdictSummary = '';
 
   if (viableCount > 0) {
-    verdictSummary = `FLIGHT DIRECTORS VERDICT [CYCLE ${dateStr}]: ${primarySite.name} ranks #1 with ${primarySite.compositeScore}/100 composite score (${primarySite.optimalDays}/14 nominal days, ${primarySite.totalMissionEnergyKwh} kWh). ${disqualifiedCount} site(s) disqualified due to cryogenic battery depletion.`;
+    verdictSummary = `AETHRA MODEL [${dateStr}]: ${primarySite.name} ranks first with ${primarySite.compositeScore}/100 (${primarySite.optimalDays}/14 modeled days, ${primarySite.totalMissionEnergyKwh} kWh estimated energy). ${disqualifiedCount} site(s) fall below this model's battery threshold.`;
   } else {
-    verdictSummary = `FLIGHT DIRECTORS VERDICT [CYCLE ${dateStr}]: ALL 5 SOUTH POLE SITES UNVIABLE (EXTENDED POLAR NIGHT). Solar surface missions require RTG nuclear power or delayed launch.`;
+    verdictSummary = `AETHRA MODEL [${dateStr}]: none of the five sites meets this run's assumed battery threshold. This result depends on the project's battery, load and illumination assumptions.`;
   }
 
   return {

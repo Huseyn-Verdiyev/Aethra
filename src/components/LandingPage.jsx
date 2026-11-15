@@ -174,7 +174,7 @@ export default function LandingPage({ downselection, theme, selectedSiteId, onSe
           <motion.article initial={{ y: 38 }} whileInView={{ y: 0 }} viewport={{ once: true, amount: 0.35 }} transition={{ duration: 0.55, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}><span className="method-index">03</span><Check size={19} /><h3>Check the inputs</h3><p>Select another date or location in the planner to see the conditions and ranking update.</p></motion.article>
         </div>
         <div className="score-explainer">
-          <div><p className="landing-kicker">HIGHEST SCORE FOR THIS RUN</p><h3>{primary?.name || primarySite.name}</h3><p>{primary?.lat?.toFixed(2)}°S, {primary?.lon?.toFixed(1)}°E · current date selection</p></div>
+          <div><p className="landing-kicker">HIGHEST SCORE FOR THIS RUN</p><h3>{primary?.name || primarySite.name}</h3><p>{Math.abs(primary?.lat ?? primarySite.lat).toFixed(2)}°{(primary?.lat ?? primarySite.lat) < 0 ? 'S' : 'N'}, {Math.abs(primary?.lon ?? primarySite.lon).toFixed(2)}°{(primary?.lon ?? primarySite.lon) < 0 ? 'W' : 'E'} · current date selection</p></div>
           <div className="score-number"><strong>{primary?.compositeScore ?? '—'}</strong><span> / 100 project score</span></div>
           <button className="primary-cta" onClick={() => onEnterPlanner(primary?.siteId)}>Open this location <ArrowRight size={17} /></button>
         </div>
@@ -184,7 +184,7 @@ export default function LandingPage({ downselection, theme, selectedSiteId, onSe
       <footer className="landing-footer">
         <div><span className="landing-brand">AETHRA</span><p>Project estimates for five lunar south-pole locations.</p></div>
         <div className="source-links">
-          <span>Reference: <a href="https://www.nasa.gov/reference/moonbase-environment/" target="_blank" rel="noreferrer">NASA · Lunar South Pole</a></span>
+          <span>Data: <a href="https://pgda.gsfc.nasa.gov/products/90" target="_blank" rel="noreferrer">NASA GSFC · South Pole LOLA DEM</a> · <a href="https://pgda.gsfc.nasa.gov/products/78" target="_blank" rel="noreferrer">5 m site DEMs</a> · <a href="https://ntrs.nasa.gov/api/citations/20250002845/downloads/M2M-30044%20Lunar%20Surface%20Data%20Book%20Baseline_Final.pdf" target="_blank" rel="noreferrer">NASA Lunar Surface Data Book</a></span>
         </div>
       </footer>
     </main>
