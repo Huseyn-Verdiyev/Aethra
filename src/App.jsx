@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   SITES_DATA, 
   generateRealEphemerisWindow,
+  computeEpochTelemetry,
   aggregateMissionDays,
   evaluateMissionViability,
   evaluateAllSitesDownselection,
@@ -55,6 +56,7 @@ export default function App() {
   const [selectedSiteId, setSelectedSiteId] = useState('malapert');
   const [activeChartTab, setActiveChartTab] = useState('angles'); // 'angles' | 'power' | 'battery' | 'comms'
   const [selectedEpochIndex, setSelectedEpochIndex] = useState(0);
+  const [manualEpochValue, setManualEpochValue] = useState('');
   const [epochDateStr, setEpochDateStr] = useState('2026-11-15');
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
@@ -103,7 +105,40 @@ export default function App() {
 
   // Active Telemetry Slice
   const safeIndex = Math.min(selectedEpochIndex, ephemerisSamples.length - 1);
-  const activeTelemetry = ephemerisSamples[safeIndex] || ephemerisSamples[0];
+  const gridTelemetry = ephemerisSamples[safeIndex] || ephemerisSamples[0];
+  const manualEpoch = useMemo(() => {
+    if (!manualEpochValue) return null;
+    const parsed = new Date(`${manualEpochValue}:00Z`);
+    const offsetHours = (parsed.getTime() - startEpoch.getTime()) / 3600000;
+    return Number.isFinite(parsed.getTime()) && offsetHours >= 0 && offsetHours < 14 * 24
+      ? { date: parsed, offsetHours }
+      : null;
+  }, [manualEpochValue, startEpoch]);
+  const activeTelemetry = useMemo(() => {
+    if (!manualEpoch) return gridTelemetry;
+    const instant = computeEpochTelemetry(selectedSiteId, manualEpoch.date);
+    return {
+      ...gridTelemetry,
+      ...instant,
+      // Battery and EPS are stateful; keep their last simulated 30-minute values.
+      batterySocWh: gridTelemetry.batterySocWh,
+      batterySocPercent: gridTelemetry.batterySocPercent,
+      powerMode: gridTelemetry.powerMode,
+      epsState: gridTelemetry.epsState,
+      isTerminated: gridTelemetry.isTerminated,
+      terminationReason: gridTelemetry.terminationReason,
+      terminationDay: gridTelemetry.terminationDay,
+      terminationHour: gridTelemetry.terminationHour,
+      regolithTempK: gridTelemetry.regolithTempK,
+      regolithTempC: gridTelemetry.regolithTempC,
+      label: manualEpoch.date.toISOString().slice(0, 16).replace('T', ' ')
+    };
+  }, [gridTelemetry, manualEpoch, selectedSiteId]);
+  const exactTimeInputValue = manualEpochValue || (gridTelemetry?.epochUTC
+    ? gridTelemetry.epochUTC.slice(0, 16)
+    : '');
+  const timelineEnd = new Date(startEpoch.getTime() + 14 * 24 * 3600000 - 60000);
+  const formatInputUtc = (date) => date.toISOString().slice(0, 16);
 
   // Crater rim / ridge obstacle clearance
   const obstacleInfo = useMemo(() => {
@@ -214,6 +249,7 @@ export default function App() {
               value={epochDateStr}
               onChange={(e) => {
                 setEpochDateStr(e.target.value);
+                setManualEpochValue('');
                 setSelectedEpochIndex(0);
               }}
               className="bg-transparent text-[#E0E0E0] outline-none cursor-pointer text-[10px] font-mono"
@@ -706,12 +742,15 @@ export default function App() {
       </div>
 
       {/* 3. SOLID BOTTOM STATUS BAR (Matte Dark, Flat Controls, Zero Outlines) */}
-      <footer className="h-9 sm:h-10 bg-[#161616] border-t border-[#242424] px-3 flex items-center justify-between text-[11px] font-mono select-none text-[#888888] shrink-0 z-20">
+      <footer className="h-12 sm:h-12 bg-[#161616] border-t border-[#242424] px-3 flex items-center justify-between text-[11px] font-mono select-none text-[#888888] shrink-0 z-20">
         
         {/* Left: Playback Controls & Timestamp Readout */}
         <div className="flex items-center gap-1.5 shrink-0">
           <button
-            onClick={() => setIsPlaying(!isPlaying)}
+            onClick={() => {
+              setManualEpochValue('');
+              setIsPlaying(!isPlaying);
+            }}
             className="px-2.5 py-1 font-medium flex items-center gap-1.5 transition-colors cursor-pointer text-xs bg-[#242424] hover:bg-[#2C2C2C] text-[#E0E0E0]"
           >
             {isPlaying ? <Pause className="w-3 h-3 fill-current text-[#AAAAAA]" /> : <Play className="w-3 h-3 fill-current text-[#AAAAAA]" />}
@@ -721,6 +760,7 @@ export default function App() {
           <button
             onClick={() => {
               setIsPlaying(false);
+              setManualEpochValue('');
               setSelectedEpochIndex(prev => Math.max(0, prev - 1));
             }}
             className="p-1 bg-[#242424] hover:bg-[#2C2C2C] text-[#E0E0E0] cursor-pointer transition-colors"
@@ -732,6 +772,7 @@ export default function App() {
           <button
             onClick={() => {
               setIsPlaying(false);
+              setManualEpochValue('');
               setSelectedEpochIndex(prev => Math.min(ephemerisSamples.length - 1, prev + 1));
             }}
             className="p-1 bg-[#242424] hover:bg-[#2C2C2C] text-[#E0E0E0] cursor-pointer transition-colors"
@@ -748,9 +789,31 @@ export default function App() {
         </div>
 
         {/* Center: Continuous 14-Day Timeline Track & Health Ribbon */}
-        <div className="flex flex-col gap-1 flex-1 max-w-xl mx-4 min-w-0">
-          <div className="flex items-center justify-between text-[9px] font-mono text-[#555555]">
+        <div className="flex flex-col gap-1 flex-1 max-w-2xl mx-4 min-w-0">
+          <div className="flex items-center justify-between gap-2 text-[9px] font-mono text-[#777777]">
             <span>D01</span>
+            <label className="flex items-center gap-1.5 text-[9px] text-[#888888] whitespace-nowrap">
+              <span className="hidden sm:inline">Exact time · UTC</span>
+              <input
+                aria-label="Exact simulation time in UTC"
+                type="datetime-local"
+                step="60"
+                min={formatInputUtc(startEpoch)}
+                max={formatInputUtc(timelineEnd)}
+                value={exactTimeInputValue}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setManualEpochValue(value);
+                  const date = new Date(`${value}:00Z`);
+                  const offsetHours = (date.getTime() - startEpoch.getTime()) / 3600000;
+                  if (Number.isFinite(date.getTime()) && offsetHours >= 0 && offsetHours < 14 * 24) {
+                    setIsPlaying(false);
+                    setSelectedEpochIndex(Math.floor(offsetHours / 0.5));
+                  }
+                }}
+                className="w-[154px] h-6 px-1.5 bg-[#202020] text-[#D0D0D0] border border-[#303030] text-[10px] font-mono outline-none focus:border-[#666666]"
+              />
+            </label>
             <span className="text-white font-medium truncate sm:hidden">
               #{selectedEpochIndex} • {activeTelemetry.label || ''} UTC
             </span>
@@ -765,6 +828,7 @@ export default function App() {
             value={selectedEpochIndex}
             onChange={(e) => {
               setIsPlaying(false);
+              setManualEpochValue('');
               setSelectedEpochIndex(Number(e.target.value));
             }}
             className="w-full cursor-pointer h-1.5 bg-[#242424] rounded-none transition-all"
@@ -781,7 +845,10 @@ export default function App() {
               return (
                 <div
                   key={d.dayNumber}
-                  onClick={() => setSelectedEpochIndex(startSample)}
+                  onClick={() => {
+                    setManualEpochValue('');
+                    setSelectedEpochIndex(startSample);
+                  }}
                   title={`Day ${d.dayNumber}: ${d.status} • Sun: ${d.sunlitHours}h • Earth: ${d.dteLosPercent}%`}
                   className={`flex-1 cursor-pointer transition-opacity hover:opacity-80 ${
                     isOptimal ? 'bg-[#3E7351]' : isDegraded ? 'bg-[#8C6E2E]' : 'bg-[#7E3232]'
