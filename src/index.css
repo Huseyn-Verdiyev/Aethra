@@ -1,0 +1,185 @@
+@import "tailwindcss";
+
+@layer base {
+  :root, :root[data-theme="geolibre"] {
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-heading: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+
+    /* Matte Neutral Dark GIS Workbench (Zero Neon, Matte Charcoal) */
+    --color-canvas: #121212;
+    --color-panel: #1A1A1A;
+    --color-card: #222222;
+    --color-cell: #222222;
+    --color-cell-hover: #2A2A2A;
+    --color-border: #2A2A2A;
+    --color-border-subtle: #242424;
+    --color-border-strong: #333333;
+    --color-text-primary: #E5E5E5;
+    --color-text-secondary: #999999;
+    --color-text-muted: #666666;
+    --color-accent: #CCCCCC;
+    --color-accent-hover: #FFFFFF;
+    --color-accent-light: #2A2A2A;
+    --color-accent-border: #444444;
+    --color-accent-text: #E5E5E5;
+    --color-button-primary: #242424;
+    --color-button-primary-hover: #2D2D2D;
+    --color-button-primary-text: #E5E5E5;
+
+    /* Grounded Status Indicators (Subdued, Non-Neon) */
+    --color-nominal: #68B684;
+    --color-nominal-light: #1E2D23;
+    --color-nominal-border: #2D4836;
+    --color-nominal-text: #68B684;
+    --color-caution: #D4A359;
+    --color-caution-light: #332717;
+    --color-caution-border: #524022;
+    --color-caution-text: #D4A359;
+    --color-critical: #C45555;
+    --color-critical-light: #331A1A;
+    --color-critical-border: #552626;
+    --color-critical-text: #C45555;
+  }
+
+  :root[data-theme="nordic"] {
+    --font-sans: 'Barlow', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-heading: 'Barlow Condensed', 'Barlow', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+    /* Theme 4: Nordic Glacial White & Deep Marine (Primary & Definitive Theme) */
+    --color-canvas: #F0F4F8;
+    --color-panel: rgba(255, 255, 255, 0.98);
+    --color-card: #FFFFFF;
+    --color-cell: #EAF0F6;
+    --color-cell-hover: #E2E8F0;
+    --color-border: #CBD5E1;
+    --color-border-subtle: #E2E8F0;
+    --color-border-strong: #94A3B8;
+    --color-text-primary: #0A192F;
+    --color-text-secondary: #334E68;
+    --color-text-muted: #627D98;
+    --color-accent: #0284C7;
+    --color-accent-hover: #0369A1;
+    --color-accent-light: #F0F9FF;
+    --color-accent-border: #BAE6FD;
+    --color-accent-text: #0369A1;
+    --color-button-primary: #0A192F;
+    --color-button-primary-hover: #132C4E;
+    --color-button-primary-text: #FFFFFF;
+
+    /* Status Indicators */
+    --color-nominal: #0D9488;
+    --color-nominal-light: #F0FDFA;
+    --color-nominal-border: #99F6E4;
+    --color-nominal-text: #0F766E;
+    --color-caution: #D97706;
+    --color-caution-light: #FFFBEB;
+    --color-caution-border: #FDE68A;
+    --color-caution-text: #B45309;
+    --color-critical: #BE123C;
+    --color-critical-light: #FFF1F2;
+    --color-critical-border: #FECDD3;
+    --color-critical-text: #9F1239;
+  }
+
+  :root[data-theme="aerospace"] {
+    --color-canvas: #F8FAFC;
+    --color-panel: rgba(255, 255, 255, 0.98);
+    --color-card: #FFFFFF;
+    --color-cell: #F1F5F9;
+    --color-cell-hover: #E2E8F0;
+    --color-border: #E2E8F0;
+    --color-border-subtle: #F1F5F9;
+    --color-border-strong: #CBD5E1;
+    --color-text-primary: #0F172A;
+    --color-text-secondary: #475569;
+    --color-text-muted: #94A3B8;
+    --color-accent: #2563EB;
+    --color-accent-hover: #1D4ED8;
+    --color-accent-light: #EFF6FF;
+    --color-accent-border: #BFDBFE;
+    --color-accent-text: #1E40AF;
+    --color-button-primary: #0F172A;
+    --color-button-primary-hover: #1E293B;
+    --color-button-primary-text: #FFFFFF;
+  }
+
+  :root[data-theme="alabaster"] {
+    --color-canvas: #FBFBFA;
+    --color-panel: rgba(255, 255, 255, 0.98);
+    --color-card: #FFFFFF;
+    --color-cell: #F5F5F3;
+    --color-cell-hover: #EBEBE8;
+    --color-border: #E7E7E4;
+    --color-border-subtle: #F0F0EE;
+    --color-border-strong: #D6D6D1;
+    --color-text-primary: #111827;
+    --color-text-secondary: #57534E;
+    --color-text-muted: #A8A29E;
+    --color-accent: #4F46E5;
+    --color-accent-hover: #4338CA;
+    --color-accent-light: #EEF2FF;
+    --color-accent-border: #C7D2FE;
+    --color-accent-text: #3730A3;
+    --color-button-primary: #111827;
+    --color-button-primary-hover: #1F2937;
+    --color-button-primary-text: #FFFFFF;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    background: var(--color-canvas);
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+}
+
+.font-heading {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Viewport Framing - No artificial vignette slop for scientific visualization */
+.vignette {
+  display: none !important;
+}
+
+/* Custom Scrollbar for Mission Rails */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(10, 25, 47, 0.16);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(10, 25, 47, 0.32);
+}
+
+/* Hide default Cesium bottom credits bar */
+.cesium-widget-credits {
+  display: none !important;
+}
