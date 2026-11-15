@@ -8,6 +8,7 @@ import {
   getTerrainObstacleInfo
 } from './data';
 import LunarMasterpiece3D from './components/LunarMasterpiece3D';
+import LandingPage from './components/LandingPage';
 import { THEMES } from './themeConfig';
 import { 
   Sun, 
@@ -45,6 +46,7 @@ import {
 
 export default function App() {
   const currentTheme = THEMES.geolibre;
+  const [showPlanner, setShowPlanner] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'geolibre');
@@ -81,6 +83,8 @@ export default function App() {
   const downselection = useMemo(() => {
     return evaluateAllSitesDownselection(startEpoch, 0.5);
   }, [startEpoch]);
+  const primary = downselection.primarySite;
+  const primarySite = SITES_DATA.find(site => site.id === primary?.siteId) || SITES_DATA[0];
 
   // High-fidelity 30-min ephemeris (672 discrete samples across 14 days)
   const ephemerisSamples = useMemo(() => {
@@ -126,6 +130,21 @@ export default function App() {
   const isSelectedRank1 = selectedSiteRankInfo?.rank === 1 && selectedSiteRankInfo?.isMissionSuccess;
   const isSelectedDisqualified = selectedSiteRankInfo?.rankStatus === 'DISQUALIFIED';
 
+  if (!showPlanner) {
+    return (
+      <LandingPage
+        downselection={downselection}
+        theme={currentTheme}
+        selectedSiteId={selectedSiteId}
+        onSelectSite={setSelectedSiteId}
+        onEnterPlanner={(siteId) => {
+          if (siteId) setSelectedSiteId(siteId);
+          setShowPlanner(true);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="w-screen h-screen flex flex-col bg-[#121212] text-[#E0E0E0] font-sans select-none overflow-hidden antialiased">
       
@@ -136,52 +155,53 @@ export default function App() {
         <div className="flex items-center gap-3 shrink-0 whitespace-nowrap">
           <div className="flex items-baseline gap-2">
             <span className="font-semibold text-xs tracking-wider text-white uppercase">
-              PROJECT AETHRA
+              AETHRA
             </span>
             <span className="text-[10px] font-mono text-[#888888] tracking-wider uppercase">
-              // GIS WORKBENCH
+              Lunar site planner
             </span>
           </div>
           <span className="text-[#333333] font-light">|</span>
           <span className="text-[10px] font-mono tracking-wider text-[#777777] uppercase hidden sm:inline">
-            NASA CLPS • ARTEMIS SOUTH POLE
+            NASA Space Apps
           </span>
           <span className="text-[#333333] font-light hidden sm:inline">|</span>
           <span className="text-[10px] font-mono text-[#888888] hidden md:inline">
-            CRS: IAU-2018 / DE440
+            South Pole
           </span>
         </div>
 
-        {/* Center: Desktop GIS Tool Actions (Flat Buttons, Zero Borders) */}
+        {/* Center: Mission tools */}
         <div className="flex items-center gap-1.5 text-xs">
+          <button onClick={() => setShowPlanner(false)} className="px-2.5 py-1 bg-[#222222] hover:bg-[#2A2A2A] text-[#E0E0E0] transition-colors cursor-pointer text-[11px]">Overview</button>
           <button
             onClick={() => {
               setStoryStep(1);
               setShowStoryModal(true);
             }}
             className="px-2.5 py-1 bg-[#222222] hover:bg-[#2A2A2A] text-[#E0E0E0] transition-colors cursor-pointer flex items-center gap-1.5 text-[11px]"
-            title="Executive Mission Briefing"
+            title="Project overview"
           >
             <FileText className="w-3.5 h-3.5 text-[#999999]" />
-            <span className="hidden sm:inline font-sans">Briefing</span>
+            <span className="hidden sm:inline font-sans">Project overview</span>
           </button>
 
           <button
             onClick={() => setShowMatrixModal(true)}
             className="px-2.5 py-1 bg-[#222222] hover:bg-[#2A2A2A] text-[#E0E0E0] transition-colors cursor-pointer flex items-center gap-1.5 text-[11px]"
-            title="NASA Systems Engineering MADA Trade Study (SP-2016-6105)"
+            title="Site ranking and score weights"
           >
             <Layers className="w-3.5 h-3.5 text-[#999999]" />
-            <span className="hidden md:inline font-sans">MADA Trade Study</span>
+            <span className="hidden md:inline font-sans">Site ranking</span>
           </button>
 
           <button
             onClick={() => setShowProofModal(true)}
             className="px-2.5 py-1 bg-[#222222] hover:bg-[#2A2A2A] text-[#E0E0E0] transition-colors cursor-pointer flex items-center gap-1.5 text-[11px]"
-            title="Astrodynamics & Geodetic Verification Proofs"
+            title="Calculation notes"
           >
             <BookOpen className="w-3.5 h-3.5 text-[#999999]" />
-            <span className="hidden lg:inline font-sans">Geodetic Proofs</span>
+            <span className="hidden lg:inline font-sans">Calculation notes</span>
           </button>
         </div>
 
@@ -198,9 +218,9 @@ export default function App() {
               }}
               className="bg-transparent text-[#E0E0E0] outline-none cursor-pointer text-[10px] font-mono"
             >
-              <option value="2026-11-15" className="bg-[#1A1A1A] text-white">Nov 2026 (Solstice)</option>
-              <option value="2027-02-10" className="bg-[#1A1A1A] text-white">Feb 2027 (Primary)</option>
-              <option value="2027-06-21" className="bg-[#1A1A1A] text-white">Jun 2027 (Winter)</option>
+              <option value="2026-11-15" className="bg-[#1A1A1A] text-white">Nov 15, 2026</option>
+              <option value="2027-02-10" className="bg-[#1A1A1A] text-white">Feb 10, 2027</option>
+              <option value="2027-06-21" className="bg-[#1A1A1A] text-white">Jun 21, 2027</option>
             </select>
           </div>
 
@@ -234,7 +254,7 @@ export default function App() {
             {/* Panel Title */}
             <div className="px-3 py-2 bg-[#161616] border-b border-[#242424] flex items-center justify-between">
               <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-[#888888]">
-                LAYERS & TARGET SITES
+                Explore sites
               </span>
               <span className="font-mono text-[10px] text-[#666666]">
                 5 SITES
@@ -244,7 +264,7 @@ export default function App() {
             {/* Section A: Candidate Landing Targets */}
             <div className="p-3 border-b border-[#242424] flex flex-col gap-2">
               <div className="flex items-center justify-between text-[10px] font-mono text-[#777777] font-medium uppercase tracking-wider">
-                <span>CANDIDATE TARGETS</span>
+                <span>Landing sites</span>
                 <span>SP-2016-6105</span>
               </div>
 
@@ -280,12 +300,12 @@ export default function App() {
                         </div>
                         <span className={`font-mono text-[9px] uppercase tracking-wider ${
                           isR1 
-                            ? 'text-[#68B684]' 
+                            ? 'text-[#A1AA9E]'
                             : isDisq 
-                            ? 'text-[#C45555]' 
+                            ? 'text-[#A78484]'
                             : 'text-[#888888]'
                         }`}>
-                          // {isR1 ? 'GO: PRIMARY' : isDisq ? 'LOM' : 'GO: ALT'}
+                          {isR1 ? 'HIGHEST SCORE' : isDisq ? 'NO-GO' : 'ALTERNATE'}
                         </span>
                       </div>
 
@@ -302,7 +322,7 @@ export default function App() {
             {/* Section B: Basemap & Elevation Raster Layers */}
             <div className="p-3 border-b border-[#242424] flex flex-col gap-2">
               <span className="text-[10px] font-mono text-[#777777] font-medium uppercase tracking-wider">
-                BASEMAP & RASTER LAYERS
+                Surface layers
               </span>
 
               <div className="grid grid-cols-2 gap-1.5 font-mono text-xs">
@@ -347,7 +367,7 @@ export default function App() {
             {/* Section C: 3D Terrain Relief Exaggeration */}
             <div className="p-3 border-b border-[#242424] flex flex-col gap-2">
               <div className="flex items-center justify-between text-[10px] font-mono text-[#777777] font-medium uppercase tracking-wider">
-                <span>3D RELIEF SCALE</span>
+                <span>Terrain scale</span>
                 <span className="text-[#AAAAAA] font-mono">{reliefExaggeration.toFixed(1)}×</span>
               </div>
 
@@ -370,14 +390,14 @@ export default function App() {
                 ))}
               </div>
               <span className="text-[9px] font-mono text-[#666666]">
-                {reliefExaggeration === 1.0 ? 'Physical Datum Scale' : reliefExaggeration === 2.5 ? 'Operational Landing Analysis' : 'Topographic Slope Hazard Scale'}
+                {reliefExaggeration === 1.0 ? 'Actual elevation' : reliefExaggeration === 2.5 ? 'Working view' : 'Exaggerated relief'}
               </span>
             </div>
 
             {/* Section D: Camera Presets */}
             <div className="p-3 flex flex-col gap-2">
               <span className="text-[10px] font-mono text-[#777777] font-medium uppercase tracking-wider">
-                CAMERA PERSPECTIVES
+                Viewpoint
               </span>
 
               <div className="flex flex-col gap-1 font-sans text-xs">
@@ -463,12 +483,12 @@ export default function App() {
             {/* Panel Title */}
             <div className="px-3 py-2 bg-[#161616] border-b border-[#242424] flex items-center justify-between">
               <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-[#888888]">
-                TELEMETRY & ATTRIBUTES
+                Site conditions
               </span>
               <span className={`font-mono text-[10px] uppercase tracking-wider ${
-                obstacleInfo.isBlocked ? 'text-[#C45555]' : 'text-[#68B684]'
+                obstacleInfo.isBlocked ? 'text-[#A78484]' : 'text-[#A1AA9E]'
               }`}>
-                // {obstacleInfo.isBlocked ? 'SHADOW' : 'SUNLIT'}
+                {obstacleInfo.isBlocked ? 'SHADOW' : 'SUNLIT'}
               </span>
             </div>
 
@@ -490,22 +510,22 @@ export default function App() {
 
                 <div className="text-right shrink-0">
                   <span className="text-[8px] font-mono uppercase tracking-wider text-[#777777] block">
-                    MADA SCORE
+                    SITE SCORE
                   </span>
                   <div className={`text-base font-mono font-bold tracking-tight ${
-                    isSelectedRank1 ? 'text-[#68B684]' : isSelectedDisqualified ? 'text-[#C45555]' : 'text-white'
+                    isSelectedRank1 ? 'text-[#A1AA9E]' : isSelectedDisqualified ? 'text-[#A78484]' : 'text-white'
                   }`}>
                     {selectedSiteRankInfo?.compositeScore || 0}
                     <span className="text-[10px] text-[#666666] font-normal font-sans">/100</span>
                   </div>
                   <div className={`text-[10px] font-mono uppercase tracking-wider mt-0.5 ${
                     isSelectedRank1 
-                      ? 'text-[#68B684]' 
+                      ? 'text-[#A1AA9E]'
                       : isSelectedDisqualified 
-                      ? 'text-[#C45555]' 
+                      ? 'text-[#A78484]'
                       : 'text-[#888888]'
                   }`}>
-                    // {isSelectedRank1 ? 'GO: PRIMARY' : isSelectedDisqualified ? 'DISQUALIFIED' : 'GO: ALTERNATE'}
+                    {isSelectedRank1 ? 'Top candidate' : isSelectedDisqualified ? 'Not viable' : 'Alternate'}
                   </div>
                 </div>
               </div>
@@ -527,7 +547,7 @@ export default function App() {
                 <div className="px-1">
                   <span className="text-[8px] uppercase tracking-wider text-[#888888] block">Slope Hazard</span>
                   <strong className={`text-xs font-semibold mt-0.5 block ${
-                    selectedSite.hazardRating === 'Low' ? 'text-[#68B684]' : selectedSite.hazardRating === 'High' ? 'text-[#C45555]' : 'text-[#D4A359]'
+                    selectedSite.hazardRating === 'Low' ? 'text-[#A1AA9E]' : selectedSite.hazardRating === 'High' ? 'text-[#A78484]' : 'text-[#AE9B7D]'
                   }`}>
                     {selectedSite.hazardRating.toUpperCase()}
                   </strong>
@@ -538,7 +558,7 @@ export default function App() {
             {/* Section B: Live Avionics Telemetry - Flat Metric Cards, Zero Outline Frames */}
             <div className="p-3 border-b border-[#242424] flex flex-col gap-2">
               <div className="flex items-center justify-between text-[10px] font-mono text-[#888888] font-medium uppercase tracking-wider">
-                <span>REAL-TIME TELEMETRY</span>
+                <span>Current conditions</span>
                 <span className="text-[#AAAAAA]">EPOCH #{selectedEpochIndex}</span>
               </div>
 
@@ -575,7 +595,7 @@ export default function App() {
                 <div className="p-2 bg-[#202020]">
                   <div className="flex items-center justify-between text-[#888888] text-[9px] uppercase">
                     <span>Array / Battery</span>
-                    <strong className="text-[#68B684]">
+                    <strong className="text-[#A1AA9E]">
                       {activeTelemetry.powerWatts}W
                     </strong>
                   </div>
@@ -606,7 +626,7 @@ export default function App() {
             {/* Section C: 14-Day Mission Ephemeris Curves */}
             <div className="p-3 flex flex-col gap-2">
               <div className="flex items-center justify-between text-[10px] font-mono">
-                <span className="text-[#888888] uppercase tracking-wider">14-DAY EPHEMERIS</span>
+                <span className="text-[#888888] uppercase tracking-wider">Two-week outlook</span>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setActiveChartTab('angles')}
@@ -614,7 +634,7 @@ export default function App() {
                       activeChartTab === 'angles' ? 'text-white font-medium bg-[#242424]' : 'text-[#777777] hover:text-[#AAAAAA]'
                     }`}
                   >
-                    ANGLES
+                    Sun
                   </button>
                   <button
                     onClick={() => setActiveChartTab('power')}
@@ -622,7 +642,7 @@ export default function App() {
                       activeChartTab === 'power' ? 'text-white font-medium bg-[#242424]' : 'text-[#777777] hover:text-[#AAAAAA]'
                     }`}
                   >
-                    POWER
+                    Power
                   </button>
                   <button
                     onClick={() => setActiveChartTab('battery')}
@@ -630,7 +650,7 @@ export default function App() {
                       activeChartTab === 'battery' ? 'text-white font-medium bg-[#242424]' : 'text-[#777777] hover:text-[#AAAAAA]'
                     }`}
                   >
-                    BATT
+                    Battery
                   </button>
                   <button
                     onClick={() => setActiveChartTab('comms')}
@@ -638,7 +658,7 @@ export default function App() {
                       activeChartTab === 'comms' ? 'text-white font-medium bg-[#242424]' : 'text-[#777777] hover:text-[#AAAAAA]'
                     }`}
                   >
-                    DSN
+                    Comms
                   </button>
                 </div>
               </div>
@@ -648,30 +668,30 @@ export default function App() {
                   <AreaChart data={ephemerisSamples} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                     <XAxis dataKey="epochIndex" tick={{ fontSize: 9, fill: '#555555' }} tickLine={false} axisLine={{ stroke: '#222222' }} interval={95} tickFormatter={(val) => `D${Math.floor(val/48) + 1}`} />
                     <YAxis tick={{ fontSize: 9, fill: '#555555' }} tickLine={false} axisLine={{ stroke: '#222222' }} domain={activeChartTab === 'angles' ? [-4, 12] : activeChartTab === 'power' ? [0, 500] : activeChartTab === 'battery' ? [0, 100] : [0, 36]} />
-                    <Tooltip contentStyle={{ backgroundColor: '#1A1A1A', borderColor: '#2E2E2E', borderRadius: '0px', color: '#E0E0E0', fontSize: '10px', padding: '4px 8px', fontFamily: 'monospace' }} labelFormatter={(val) => `Epoch #${val} (${ephemerisSamples[val]?.label || ''} UTC)`} />
+                    <Tooltip contentStyle={{ backgroundColor: '#1A1A1A', borderColor: '#303030', borderRadius: '0px', color: '#E0E0E0', fontSize: '10px', padding: '4px 8px', fontFamily: 'monospace' }} labelFormatter={(val) => `Epoch #${val} (${ephemerisSamples[val]?.label || ''} UTC)`} />
                     <ReferenceLine x={selectedEpochIndex} stroke="#777777" strokeWidth={1} strokeDasharray="2 2" />
                     {activeChartTab === 'angles' && (
                       <>
-                        <ReferenceLine y={0} stroke="#C45555" strokeDasharray="2 2" />
+                        <ReferenceLine y={0} stroke="#A78484" strokeDasharray="2 2" />
                         <Area isAnimationActive={false} type="monotone" dataKey="sunElevation" stroke="#8FA3B8" fillOpacity={0.08} fill="#8FA3B8" strokeWidth={1.5} name="Sun El (°)" />
                         <Area isAnimationActive={false} type="monotone" dataKey="earthElevation" stroke="#555555" fillOpacity={0} strokeWidth={1.5} name="Earth El (°)" />
                       </>
                     )}
                     {activeChartTab === 'power' && (
                       <>
-                        <ReferenceLine y={65} stroke="#D4A359" strokeDasharray="2 2" />
-                        <Area isAnimationActive={false} type="monotone" dataKey="powerWatts" stroke="#68B684" fillOpacity={0.08} fill="#68B684" strokeWidth={1.5} name="Solar Power (W)" />
+                        <ReferenceLine y={65} stroke="#AE9B7D" strokeDasharray="2 2" />
+                        <Area isAnimationActive={false} type="monotone" dataKey="powerWatts" stroke="#A1AA9E" fillOpacity={0.08} fill="#A1AA9E" strokeWidth={1.5} name="Solar Power (W)" />
                       </>
                     )}
                     {activeChartTab === 'battery' && (
                       <>
-                        <ReferenceLine y={20} stroke="#C45555" strokeDasharray="2 2" />
+                        <ReferenceLine y={20} stroke="#A78484" strokeDasharray="2 2" />
                         <Area isAnimationActive={false} type="monotone" dataKey="batterySocPercent" stroke="#8FA3B8" fillOpacity={0.08} fill="#8FA3B8" strokeWidth={1.5} name="Battery SoC (%)" />
                       </>
                     )}
                     {activeChartTab === 'comms' && (
                       <>
-                        <ReferenceLine y={3} stroke="#C45555" strokeDasharray="2 2" />
+                        <ReferenceLine y={3} stroke="#A78484" strokeDasharray="2 2" />
                         <Area isAnimationActive={false} type="monotone" dataKey="linkMarginDb" stroke="#8FA3B8" fillOpacity={0.08} fill="#8FA3B8" strokeWidth={1.5} name="DSN Link Margin (dB)" />
                       </>
                     )}
@@ -791,13 +811,13 @@ export default function App() {
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#1C1C1C] border border-[#2E2E2E] rounded-none max-w-4xl w-full p-5 text-[#E0E0E0] max-h-[90vh] overflow-y-auto font-sans shadow-2xl cursor-default"
+            className="bg-[#1C1C1C] border border-[#303030] rounded-none max-w-4xl w-full p-5 text-[#E0E0E0] max-h-[90vh] overflow-y-auto font-sans shadow-2xl cursor-default"
           >
             <div className="flex items-center justify-between border-b border-[#2A2A2A] pb-3">
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-[#AAAAAA]" />
                 <h3 className="font-semibold text-sm text-white tracking-tight">
-                  NASA Systems Engineering Downselection Matrix (SP-2016-6105 MADA)
+                  Site ranking
                 </h3>
               </div>
               <button 
@@ -811,18 +831,17 @@ export default function App() {
 
             <div className="my-3 space-y-3">
               <p className="text-xs text-[#999999] leading-relaxed">
-                Evaluation conducted according to NASA Systems Engineering Handbook (SP-2016-6105 Section 6.8) Multi-Attribute Decision Analysis: 
-                <strong className="text-white"> 40% Feasibility</strong>, <strong className="text-white">30% Direct-To-Earth Signal</strong>, <strong className="text-white">20% Clean Energy</strong>, and <strong className="text-white">10% Slope Hazard</strong>. 
-                Any landing site experiencing battery depletion (0% SoC) in crater shadow triggers immediate disqualification under irreversible Loss of Mission (LOM) rules.
+                Aethra calculates its project score using these weights:
+                <strong className="text-white"> 40% feasibility</strong>, <strong className="text-white">30% Earth contact</strong>, <strong className="text-white">20% generated energy</strong>, and <strong className="text-white">10% terrain hazard</strong>. <a className="underline underline-offset-2 text-[#D0D0D0]" href="https://www.nasa.gov/reference/systems-engineering-handbook/" target="_blank" rel="noreferrer">NASA/SP-2016-6105 §6.8</a> describes decision analysis; the weights and 0% battery rule shown here are set by this project. A site is marked no-go if the modeled battery reaches 0%.
               </p>
 
               {/* Clean Matte Table */}
               <div className="overflow-x-auto border border-[#2A2A2A]">
                 <table className="w-full text-left text-xs font-sans">
-                  <thead className="bg-[#242424] text-white font-medium border-b border-[#2E2E2E]">
+                  <thead className="bg-[#242424] text-white font-medium border-b border-[#303030]">
                     <tr>
                       <th className="p-2.5">Rank</th>
-                      <th className="p-2.5">Candidate Zone</th>
+                      <th className="p-2.5">Candidate site</th>
                       <th className="p-2.5">Solar Exposure</th>
                       <th className="p-2.5">DSN Link</th>
                       <th className="p-2.5">Composite Score</th>
@@ -841,9 +860,9 @@ export default function App() {
                           <td className="p-2.5 font-medium">
                             <span className={`px-1.5 py-0.5 text-[11px] ${
                               isR1 
-                                ? 'bg-[#1E2D23] text-[#68B684]' 
+                                ? 'bg-[#1E2D23] text-[#A1AA9E]'
                                 : isDisq 
-                                ? 'bg-[#331A1A] text-[#C45555]' 
+                                ? 'bg-[#331A1A] text-[#A78484]'
                                 : 'bg-[#242424] text-[#888888]'
                             }`}>
                               0{site.rank}
@@ -855,7 +874,7 @@ export default function App() {
                           <td className="p-2.5 text-[#E0E0E0] font-mono">
                             {site.solarCoveragePercent ?? 0}%
                             {!site.isMissionSuccess && (
-                              <span className="text-[10px] text-[#C45555] block font-mono font-medium">LOM Depleted</span>
+                                <span className="text-[10px] text-[#A78484] block font-mono font-medium">Battery reaches 0%</span>
                             )}
                           </td>
                           <td className="p-2.5 text-[#E0E0E0] font-mono">{site.dsnCoveragePercent ?? 0}%</td>
@@ -865,12 +884,12 @@ export default function App() {
                           <td className="p-2.5">
                             <span className={`px-2 py-0.5 text-[10px] ${
                               isR1 
-                                ? 'text-[#68B684]' 
+                                ? 'text-[#A1AA9E]'
                                 : isDisq 
-                                ? 'text-[#C45555]' 
+                                ? 'text-[#A78484]'
                                 : 'text-[#888888]'
                             }`}>
-                              {site.rankStatus}
+                              {isR1 ? 'Highest score' : isDisq ? 'No-go' : 'Alternate'}
                             </span>
                           </td>
                           <td className="p-2.5">
@@ -883,7 +902,7 @@ export default function App() {
                               }}
                               className="px-2.5 py-1 bg-[#262626] hover:bg-[#303030] text-white font-sans text-xs font-medium cursor-pointer transition-colors"
                             >
-                              Inspect 3D
+                              View site
                             </button>
                           </td>
                         </tr>
@@ -899,7 +918,7 @@ export default function App() {
                 onClick={() => setShowMatrixModal(false)}
                 className="px-3.5 py-1.5 bg-[#262626] hover:bg-[#303030] text-white font-sans font-medium text-xs cursor-pointer"
               >
-                Close Trade Study
+                Close
               </button>
             </div>
           </div>
@@ -914,13 +933,13 @@ export default function App() {
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#1C1C1C] border border-[#2E2E2E] rounded-none max-w-3xl w-full p-5 text-[#E0E0E0] max-h-[90vh] overflow-y-auto font-sans shadow-2xl cursor-default"
+            className="bg-[#1C1C1C] border border-[#303030] rounded-none max-w-3xl w-full p-5 text-[#E0E0E0] max-h-[90vh] overflow-y-auto font-sans shadow-2xl cursor-default"
           >
             <div className="flex items-center justify-between border-b border-[#2A2A2A] pb-3">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-[#AAAAAA]" />
                 <h3 className="font-semibold text-sm text-white tracking-tight">
-                  Astrodynamics & Geodetic Verification Standards (IAU-2018 / DE440)
+                  Calculation notes
                 </h3>
               </div>
               <button 
@@ -935,28 +954,28 @@ export default function App() {
             <div className="my-3 space-y-3 text-xs text-[#999999] leading-relaxed">
               <div className="p-3 bg-[#222222]">
                 <strong className="text-white text-xs font-mono font-medium block mb-1 uppercase">
-                  1. IAU WGCCRE 2018 Triaxial Ellipsoid Reference
+                  1. Lunar shape
                 </strong>
                 <p>
-                  Implements the Archinal et al. (2018) lunar figure standard: Equatorial semi-major axis <strong className="text-white">a = 1738.1 km</strong>, polar radius <strong className="text-white">c = 1735.97 km</strong>. This directly models the <strong className="text-white">1.43 km polar flattening</strong>, preventing catastrophic horizon line-of-sight elevation calculation errors that occur when assuming an ideal sphere.
+                  Position calculations use an equatorial radius of <strong className="text-white">1738.1 km</strong> and a polar radius of <strong className="text-white">1735.97 km</strong>, following the IAU 2018 reference. The model uses an ellipsoid to account for the difference between those radii.
                 </p>
               </div>
 
               <div className="p-3 bg-[#222222]">
                 <strong className="text-white text-xs font-mono font-medium block mb-1 uppercase">
-                  2. Exact Analytical Solar Limb Darkening (Mandel & Agol 2002)
+                  2. Sunlight near the horizon
                 </strong>
                 <p>
-                  Calculates grazing knife-edge occultation by crater rims using non-linear limb darkening. Strictly preserves circular disk reflection symmetry <strong className="text-white">f(0) = 0.5000</strong> and <strong className="text-white">f(y) + f(-y) = 1.0000</strong>, eliminating abrupt artificial step discontinuities when the solar disk sets behind mountains.
+                  When a ridge partly covers the Sun, the model estimates the visible part of the solar disk. The calculation checks two symmetry conditions: <strong className="text-white">f(0) = 0.5000</strong> and <strong className="text-white">f(y) + f(-y) = 1.0000</strong>.
                 </p>
               </div>
 
               <div className="p-3 bg-[#222222]">
                 <strong className="text-white text-xs font-mono font-medium block mb-1 uppercase">
-                  3. 3D Vector Telecommunications to NASA DSN
+                  3. Earth-station visibility
                 </strong>
                 <p>
-                  Topocentric line-of-sight pointing vectors to the three Deep Space Network complexes (Goldstone DSS-24, Madrid DSS-54, Canberra DSS-35) incorporate WGS-84 Earth flattening, Greenwich Apparent Sidereal Time (GAST) diurnal rotation, and the DSN 810-005 Module 104 operational 10.0° elevation mask.
+                  The model checks the line of sight to Goldstone (DSS-24), Madrid (DSS-54) and Canberra (DSS-35). It uses WGS-84 coordinates, Earth rotation, and a 10° minimum station elevation.
                 </p>
               </div>
             </div>
@@ -966,7 +985,7 @@ export default function App() {
                 onClick={() => setShowProofModal(false)}
                 className="px-3.5 py-1.5 bg-[#262626] hover:bg-[#303030] text-white font-sans font-medium text-xs cursor-pointer"
               >
-                Close Formulation
+                Close
               </button>
             </div>
           </div>
@@ -981,13 +1000,13 @@ export default function App() {
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#1C1C1C] border border-[#2E2E2E] rounded-none max-w-2xl w-full p-5 text-[#E0E0E0] font-sans shadow-2xl cursor-default"
+            className="bg-[#1C1C1C] border border-[#303030] rounded-none max-w-2xl w-full p-5 text-[#E0E0E0] font-sans shadow-2xl cursor-default"
           >
             <div className="flex items-center justify-between border-b border-[#2A2A2A] pb-3">
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-[#AAAAAA]" />
                 <h3 className="font-semibold text-sm text-white tracking-tight">
-                  Artemis Landing Selection Briefing [STEP 0{storyStep} / 04]
+                  Site-selection briefing · 0{storyStep} / 04
                 </h3>
               </div>
               <button 
@@ -1003,41 +1022,41 @@ export default function App() {
               {storyStep === 1 && (
                 <div className="space-y-2.5">
                   <span className="text-[9px] font-mono font-medium uppercase tracking-wider text-[#CCCCCC] bg-[#2A2A2A] px-2 py-0.5">
-                    OPERATIONAL ENVELOPE // SOUTH POLAR REGION
+                    SOUTH-POLE CONDITIONS
                   </span>
                   <h2 className="text-lg font-semibold tracking-tight text-white">
-                    Sub-Tangent Solar Incidence & Thermal Constraints
+                    Sunlight at a low angle
                   </h2>
                   <p className="text-[#999999] text-xs leading-relaxed">
-                    At latitudes exceeding 85°S, the solar sub-tangent elevation angle remains constrained between 0.5° and 2.0° above the local datum. Elevated massifs cast topographic shadow corridors up to 50 km across adjacent lowlands. Cryogenic crater interiors reach 40 K (-233°C). Vehicles equipped with 1.5 kWh secondary battery storage experience bus depletion within 12 hours under sustained occultation.
+                    Near the lunar south pole, the Sun stays close to the horizon. Ridges can cast long shadows, and some crater floors never receive direct sunlight. These conditions affect solar power and surface temperature.
                   </p>
                 </div>
               )}
 
               {storyStep === 2 && (
                 <div className="space-y-2.5">
-                  <span className="text-[9px] font-mono font-medium uppercase tracking-wider text-[#C45555] bg-[#331A1A] px-2 py-0.5">
-                    DOWNSELECTION GATE // SP-2016-6105 CRITERIA
+                  <span className="text-[9px] font-mono font-medium uppercase tracking-wider text-[#A78484] bg-[#331A1A] px-2 py-0.5">
+                    PROJECT SCORING RULE
                   </span>
                   <h2 className="text-lg font-semibold tracking-tight text-white">
-                    Disqualification: Haworth Floor & Shackleton Ridge
+                    When a site is marked no-go
                   </h2>
                   <p className="text-[#999999] text-xs leading-relaxed">
-                    Haworth Crater floor is occluded by 5,000 m massif terrain, yielding zero direct solar exposure across the 14-day evaluation window. Shackleton Connecting Ridge exhibits periodic terrain occultation exceeding the 12-hour survival margin, resulting in 0% battery State of Charge. Under SP-2016-6105 Section 6.8 MADA constraints, both candidates are designated as Loss of Mission (LOM).
+                    A site is marked no-go if its modeled battery state reaches 0% during the selected window. This exclusion rule belongs to Aethra’s project model; it is not a requirement from NASA/SP-2016-6105. Change the date in the planner to recalculate each site.
                   </p>
                 </div>
               )}
 
               {storyStep === 3 && (
                 <div className="space-y-2.5">
-                  <span className="text-[9px] font-mono font-medium uppercase tracking-wider text-[#68B684] bg-[#1E2D23] px-2 py-0.5">
-                    DOWNSELECTION LEADER // RANK 01 DESIGNATION
+                  <span className="text-[9px] font-mono font-medium uppercase tracking-wider text-[#A1AA9E] bg-[#1E2D23] px-2 py-0.5">
+                    CURRENT RANKING
                   </span>
                   <h2 className="text-lg font-semibold tracking-tight text-white">
-                    Malapert Mountain Peak (+5,120 m Elevation Datum)
+                    {primary?.name || primarySite.name} · {primary?.compositeScore ?? '—'} / 100
                   </h2>
                   <p className="text-[#999999] text-xs leading-relaxed">
-                    Malapert Mountain (85.99°S, 0.0°E) provides the highest continuous topographic relief in the south polar region at +5,120 m above the IAU-2018 triaxial reference ellipsoid. The local horizon depression angle (-3.8°) ensures 98.2% direct line-of-sight to Deep Space Network complexes (Goldstone, Madrid, Canberra) and continuous solar array generation exceeding 390 W throughout the southern summer solstice.
+                    {primary?.name || primarySite.name} has the highest score for the selected date: {primary?.compositeScore ?? '—'} out of 100. The score comes from Aethra’s model. Select the site in the planner to inspect its conditions over time.
                   </p>
                 </div>
               )}
@@ -1045,13 +1064,13 @@ export default function App() {
               {storyStep === 4 && (
                 <div className="space-y-2.5">
                   <span className="text-[9px] font-mono font-medium uppercase tracking-wider text-[#CCCCCC] bg-[#2A2A2A] px-2 py-0.5">
-                    VISUALIZATION // TOPOGRAPHIC RELIEF VERIFICATION
+                    TERRAIN VIEW
                   </span>
                   <h2 className="text-lg font-semibold tracking-tight text-white">
-                    Surface Cockpit Elevation Profile
+                    Inspect the local slope
                   </h2>
                   <p className="text-[#999999] text-xs leading-relaxed">
-                    Transition the 3D camera to a 16° grazing cockpit perspective directly over Malapert Mountain to inspect local slope gradient, terrain roughness, and solar vector line-of-sight on the LOLA 256×256 digital elevation grid.
+                    Open the surface view over Malapert Mountain. The terrain comes from a 256 × 256 elevation grid. Use it to inspect the local slope and the Sun’s direction.
                   </p>
                   <div className="pt-2">
                     <button
@@ -1063,7 +1082,7 @@ export default function App() {
                       }}
                       className="w-full py-2.5 bg-[#262626] hover:bg-[#303030] text-white font-medium text-xs font-sans flex items-center justify-center gap-2 transition-colors cursor-pointer"
                     >
-                      <span>Inspect Malapert Peak Surface Telemetry</span>
+                      <span>View Malapert terrain</span>
                       <ArrowUpRight className="w-3.5 h-3.5 text-[#CCCCCC]" />
                     </button>
                   </div>

@@ -49,6 +49,7 @@ const LunarMasterpiece3D = forwardRef(function LunarMasterpiece3D({
 
   const [activeCameraMode, setActiveCameraMode] = useState('southpole');
   const [altitudeKm, setAltitudeKm] = useState(1200);
+  const altitudeKmRef = useRef(1200);
   const [internalRelief, setInternalRelief] = useState(2.5);
   const [internalLayerMode, setInternalLayerMode] = useState('albedo');
   const autoRotateRef = useRef(false);
@@ -110,11 +111,11 @@ const LunarMasterpiece3D = forwardRef(function LunarMasterpiece3D({
     const renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
-      powerPreference: 'high-performance',
+      powerPreference: 'low-power',
       logarithmicDepthBuffer: true
     });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.45;
     renderer.shadowMap.enabled = true;
@@ -170,8 +171,8 @@ const LunarMasterpiece3D = forwardRef(function LunarMasterpiece3D({
     // 6. Directional Sunlight with High-Fidelity Shadow Frustum (Pure Solar White, High Dynamic Range)
     const sunLight = new THREE.DirectionalLight(0xffffff, 5.6);
     sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width = 2048;
-    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.mapSize.width = 1024;
+    sunLight.shadow.mapSize.height = 1024;
     sunLight.shadow.camera.near = 5.0;
     sunLight.shadow.camera.far = 160.0;
     sunLight.shadow.camera.left = -22.0;
@@ -358,11 +359,37 @@ const LunarMasterpiece3D = forwardRef(function LunarMasterpiece3D({
     canvas.addEventListener('pointerdown', onPointerDown);
 
     // 10. Render Loop & Orbit Auto-Spin
-    let animationFrameId;
+    let animationFrameId = null;
     let lastTime = performance.now();
+    let lastAltitudeUpdate = 0;
+    let scrollResumeTimer = null;
+    let renderingPausedForScroll = false;
 
-    const animate = () => {
+    const requestRender = () => {
+      if (animationFrameId === null && !renderingPausedForScroll) {
+        animationFrameId = requestAnimationFrame(animate);
+      }
+    };
+
+    const pauseDuringPageScroll = () => {
+      renderingPausedForScroll = true;
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+      window.clearTimeout(scrollResumeTimer);
+      scrollResumeTimer = window.setTimeout(() => {
+        renderingPausedForScroll = false;
+        lastTime = performance.now();
+        requestRender();
+      }, 180);
+    };
+
+    let lastFrame = 0;
+    const animate = (frameTime = 0) => {
       animationFrameId = requestAnimationFrame(animate);
+      if (frameTime - lastFrame < 1000 / 30) return;
+      lastFrame = frameTime;
 
       const now = performance.now();
       const delta = (now - lastTime) / 1000;
@@ -429,11 +456,16 @@ const LunarMasterpiece3D = forwardRef(function LunarMasterpiece3D({
       // Altitude telemetry
       const dist = camera.position.distanceTo(controls.target);
       const approxAltKm = Math.round(dist * 38.0);
-      setAltitudeKm(approxAltKm);
+      if (now - lastAltitudeUpdate > 120 && altitudeKmRef.current !== approxAltKm) {
+        altitudeKmRef.current = approxAltKm;
+        setAltitudeKm(approxAltKm);
+        lastAltitudeUpdate = now;
+      }
 
       renderer.render(scene, camera);
     };
-    animate();
+    window.addEventListener('scroll', pauseDuringPageScroll, { passive: true });
+    requestRender();
 
     const handleResize = () => {
       if (!container || !renderer || !camera) return;
@@ -454,8 +486,10 @@ const LunarMasterpiece3D = forwardRef(function LunarMasterpiece3D({
     return () => {
       resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', pauseDuringPageScroll);
+      window.clearTimeout(scrollResumeTimer);
       canvas.removeEventListener('pointerdown', onPointerDown);
-      cancelAnimationFrame(animationFrameId);
+      if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
       controls.dispose();
       renderer.dispose();
     };
