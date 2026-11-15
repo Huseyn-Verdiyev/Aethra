@@ -190,8 +190,9 @@ const LunarMasterpiece3D = forwardRef(function LunarMasterpiece3D({
     scene.add(ambientLight);
 
     // 7. Load Textures & 3D LOLA Elevation Grid (65,536 Elevation Vertices)
+    const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
     const textureLoader = new THREE.TextureLoader();
-    const albedoTex = textureLoader.load('/textures/south_pole_albedo.jpg', (tex) => {
+    const albedoTex = textureLoader.load(`${baseUrl}textures/south_pole_albedo.jpg`, (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = renderer.capabilities.getMaxAnisotropy() || 16;
       tex.minFilter = THREE.LinearMipmapLinearFilter;
@@ -202,7 +203,7 @@ const LunarMasterpiece3D = forwardRef(function LunarMasterpiece3D({
       }
     });
 
-    const lolaTex = textureLoader.load('/textures/south_pole_lola_color.jpg', (tex) => {
+    const lolaTex = textureLoader.load(`${baseUrl}textures/south_pole_lola_color.jpg`, (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = renderer.capabilities.getMaxAnisotropy() || 16;
       tex.minFilter = THREE.LinearMipmapLinearFilter;
@@ -212,7 +213,7 @@ const LunarMasterpiece3D = forwardRef(function LunarMasterpiece3D({
     texturesRef.current = { albedo: albedoTex, lola: lolaTex };
 
     // Fetch raw 64KB NASA LOLA elevation heights
-    fetch('/textures/south_pole_heights.bin')
+    fetch(`${baseUrl}textures/south_pole_heights.bin`)
       .then(res => res.arrayBuffer())
       .then(buffer => {
         const heights = new Uint8Array(buffer);

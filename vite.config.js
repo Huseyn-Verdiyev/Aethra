@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import cesium from 'vite-plugin-cesium';
 
 export default defineConfig({
+  base: './',
   plugins: [react(), tailwindcss(), cesium()],
   server: {
     port: 5176

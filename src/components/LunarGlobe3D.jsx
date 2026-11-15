@@ -200,17 +200,18 @@ const LunarGlobe3D = forwardRef(function LunarGlobe3D({
     scene.add(starfield);
 
     // 6. Progressive Level-of-Detail (LoD) Texture Pipeline
+    const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
     const maxAnisotropy = Math.min(renderer.capabilities.getMaxAnisotropy() || 1, 16);
     const textureLoader = new THREE.TextureLoader();
 
     // Tier 1: Fast Base Texture (Instantly renders the Moon sphere with 0ms blocking)
-    const baseColorMap = textureLoader.load('/textures/moon_color.jpg', (tex) => {
+    const baseColorMap = textureLoader.load(`${baseUrl}textures/moon_color.jpg`, (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = maxAnisotropy;
       tex.generateMipmaps = true;
     });
 
-    const baseBumpMap = textureLoader.load('/textures/moon_bump.jpg', (tex) => {
+    const baseBumpMap = textureLoader.load(`${baseUrl}textures/moon_bump.jpg`, (tex) => {
       tex.anisotropy = maxAnisotropy;
       tex.generateMipmaps = true;
     });
@@ -257,7 +258,7 @@ const LunarGlobe3D = forwardRef(function LunarGlobe3D({
       };
 
       // Load 8K LROC Color Map (8192 x 4096)
-      colorTex = textureLoader.load('/textures/moon_8k.jpg', (tex) => {
+      colorTex = textureLoader.load(`${baseUrl}textures/moon_8k.jpg`, (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.anisotropy = maxAnisotropy;
         tex.generateMipmaps = true;
@@ -267,7 +268,7 @@ const LunarGlobe3D = forwardRef(function LunarGlobe3D({
       });
 
       // Load 5.7K LOLA Altimetry DEM (5760 x 2880)
-      bumpTex = textureLoader.load('/textures/moon_bump_hires.jpg', (tex) => {
+      bumpTex = textureLoader.load(`${baseUrl}textures/moon_bump_hires.jpg`, (tex) => {
         tex.anisotropy = maxAnisotropy;
         tex.generateMipmaps = true;
         tex.minFilter = THREE.LinearMipmapLinearFilter;
