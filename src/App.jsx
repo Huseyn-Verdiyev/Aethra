@@ -51,6 +51,15 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'geolibre');
+    window.__aethra = {
+      setShowPlanner,
+      setSelectedSiteId,
+      setLayerMode,
+      setActiveChartTab,
+      setSelectedEpochIndex,
+      setIsPlaying,
+      setReliefExaggeration
+    };
   }, []);
 
   const [selectedSiteId, setSelectedSiteId] = useState('malapert');

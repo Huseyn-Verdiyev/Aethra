@@ -54,6 +54,24 @@ const LunarMasterpiece3D = forwardRef(function LunarMasterpiece3D({
   const [internalLayerMode, setInternalLayerMode] = useState('albedo');
   const autoRotateRef = useRef(false);
 
+  useEffect(() => {
+    window.__aethraCamera = {
+      setAutoRotate: (val) => { autoRotateRef.current = val; },
+      setTarget: (x, y, z) => {
+        if (controlsRef.current) {
+          controlsRef.current.target.set(x, y, z);
+          controlsRef.current.update();
+        }
+      },
+      setPosition: (x, y, z) => {
+        if (cameraRef.current) {
+          cameraRef.current.position.set(x, y, z);
+          if (controlsRef.current) controlsRef.current.update();
+        }
+      }
+    };
+  }, []);
+
   const reliefExaggeration = propReliefExaggeration !== undefined ? propReliefExaggeration : internalRelief;
   const layerMode = propLayerMode !== undefined ? propLayerMode : internalLayerMode;
 

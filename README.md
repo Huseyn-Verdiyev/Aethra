@@ -1,6 +1,15 @@
 # Aethra
 
-Aethra is a lunar south-pole site screening interface for the NASA Space Apps challenge. Its terrain horizon profiles are derived from NASA Lunar Orbiter Laser Altimeter (LOLA) digital elevation models (DEMs). Scores, illumination windows and subsystem outputs are estimates from this project; they are not NASA ratings, validated mission predictions, or landing recommendations.
+Aethra is a lunar south-pole candidate landing site evaluation interface developed for the 2026 NASA Space Apps Challenge (Universal Event, Team Los Pollos Cosmicos). It calculates terrain horizon profiles, solar illumination windows, and Earth communication line-of-sight across candidate Artemis and CLPS landing regions using NASA Lunar Orbiter Laser Altimeter (LOLA) elevation models.
+
+## Deliverables & Links
+
+- **Live Web Application:** <https://huseyn-verdiyev.github.io/Aethra/>
+- **7-Slide Technical Presentation (PDF):** [Aethra_NASA_SpaceApps_Presentation.pdf](https://huseyn-verdiyev.github.io/Aethra/Aethra_NASA_SpaceApps_Presentation.pdf)
+- **30-Second Demonstration Video:** [aethra_nasa_demo_30s.mp4](https://huseyn-verdiyev.github.io/Aethra/aethra_nasa_demo_30s.mp4)
+- **GitHub Source Code:** <https://github.com/Huseyn-Verdiyev/Aethra>
+
+Scores, illumination windows, and subsystem outputs are estimates derived within this project; they are not official NASA ratings, validated mission predictions, or landing hazard certifications.
 
 ## Terrain inputs
 
